@@ -1,8 +1,11 @@
-####接口说明
-#####/upload上传文件
+接口说明
+================
+### /upload上传文件
+
 方法：POST
 uri：/upload
-######请求参数：
+
+##### 请求参数：
 字段：fileName(String) fileType(String) 
 
 //nginx-http：没有证书以http方式访问的配置文件，fileName规定http_proxy.conf，Type规定nginx-http
@@ -13,18 +16,19 @@ uri：/upload
 //config-lua：主要配置一些防御规则开关，主要修改防御CC规则,fileName规定为config.lua，Type规定为config-lua
 //filebeat-yaml：日志filebeat配置文件，fileName规定为filebeat.yaml，Type规定为filebeat-yaml
 
-返回参数：
+##### 返回参数：
 status  状态 错误状态500
 type    标记为false
 msg     错误内容信息
 
 
-#####/checkAction检查状态
+#### /checkAction检查状态
+===================
 方法：GET
 rui：/checkAction
 
 
-返回参数：
+##### 返回参数：
 
 code  当前执行操作的uuid
 status 当前执行操作的状态 成功：success 失败：failure
