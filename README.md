@@ -34,7 +34,7 @@ msg     错误内容信息
 
 
 #### /checkAction检查状态
-================
+
 方法：GET  
 
 rui：/checkAction  
