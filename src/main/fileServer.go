@@ -177,18 +177,12 @@ func afterUpload(uu string) {
 func checkAction(c http.ResponseWriter, req *http.Request) {
 
 	code := req.FormValue("code")
-	statu := req.FormValue("status")
-	action := req.FormValue("action")
 
 	js := make(map[string]interface{})
 	js["code"] = code
-	js["status"] = statu
-	js["sction"] = action
+	js["status"] = uuidMap[code].status
+	js["sction"] = uuidMap[code].action
 	upl, _ := json.Marshal(js)
 	fmt.Fprintln(c, string(upl))
 
-
-
 }
-
-
