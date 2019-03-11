@@ -127,9 +127,10 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 
 		//返回上传结果
 		js := make(map[string]interface{})
-		js["uuid"] = uu
-		js["status"] = 200
-		js["msg"] = "上传成功"
+		js["code"] = uu
+		js["stats"] = 200
+		js["status"] = uuidMap[uu].status
+		js["action"] = uuidMap[uu].action
 		upl, _ := json.Marshal(js)
 		fmt.Fprintln(w, string(upl))
 
@@ -169,7 +170,7 @@ func afterUpload(uu string) {
 
 	} else {
 		uuidMap[uu] = resultTemp{uu, "failure", "check"}
-
+		return
 	}
 
 }
