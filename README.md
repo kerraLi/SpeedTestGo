@@ -32,19 +32,3 @@ type    标记为false
 msg     错误内容信息  
 
 
-
-#### /checkAction检查状态
-
-方法：GET  
-
-rui：/checkAction  
-
-
-
-##### 返回参数：
-
-code  当前执行操作的uuid  
-
-status 当前执行操作的状态 成功：success 失败：failure  
-
-action 当前执行操作的步骤  check：检查配置  rebot：重加载   
