@@ -31,7 +31,7 @@ var temps = map[string]temp{
 	"cert-crt":      {"cert.crt", "cert-crt", "/usr/local/openresty/nginx/conf/cert.d/"},
 	"rewrite-rule":  {"rewrite.rule", "rewrite-rule", "/usr/local/openresty/nginx/conf/rule-config/"},
 	"config-lua":    {"config.lua", "config-lua", "/usr/local/openresty/lualib/resty/upstream/"},
-	"filebeat-yaml": {"filebeat.yaml", "filebeat-yaml", "/home/rancher/confd"}}
+	"filebeat-yml": {"filebeat.yml", "filebeat-yml", "/opt/filebeat/"}}
 
 //nginx-http：没有证书以http方式访问的配置文件，文件名规定http_proxy.conf，Type规定nginx-http，生产环境路径为/usr/local/openresty/nginx/conf/web/；
 //nginx-https：有证书以https方式访问的配置文件，文件名规定https_proxy.conf，Type规定nginx-https，生产环境路径为/usr/local/openresty/nginx/conf/web/，必须配合crt和key使用；
@@ -39,7 +39,7 @@ var temps = map[string]temp{
 //cert-crt：用于https访问是的证书crt，文件名规定为cert.crt，Type规定为cert-crty，生产环境路径为/usr/local/openresty/nginx/conf/cert.d/；
 //rewrite-rule：该规则是规定当使用https方式访问时，需要跳转的https域名，文件名规定为rewrite-rule，Type规定为rewrite-rule，生产环境路径为/usr/local/openresty/nginx/conf/rule-config/；
 //config-lua：主要配置一些防御规则开关，主要修改防御CC规则,文件名规定为config.lua，Type规定为config-lua，生产环境路径为/usr/local/openresty/lualib/resty/upstream/；
-//filebeat-yaml：日志filebeat配置文件，文件名规定为filebeat.yaml，Type规定为filebeat-yaml，生产环境路径为/opt/filebeat/;
+//filebeat-yml：日志filebeat配置文件，文件名规定为filebeat.yml，Type规定为filebeat-yml，生产环境路径为/opt/filebeat/;
 
 type resultTemp struct {
 	code   string
@@ -61,9 +61,6 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 	uu := uuid.Must(uuid.NewV4()).String()
 	uuidMap[uu] = resultTemp{uu, "init", ""}
 
-	// todo one thread
-	afterUpload(uu);
-
 	//输出对应的 请求方式
 	fmt.Println(req.Method)
 	//判断对应的请求来源。如果为get 显示对应的页面
@@ -83,6 +80,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 			js["msg"] = file_err
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
+			fmt.Printf("%s\r\n",string(upl))
 			return
 		}
 
@@ -94,6 +92,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 			js["msg"] = "fileTpye_err"
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
+			fmt.Printf("%s\r\n",string(upl))
 			return
 		}
 
@@ -105,6 +104,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 			js["msg"] = "fileName_err"
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
+			fmt.Printf("%s\r\n",string(upl))
 			return
 		}
 
@@ -120,6 +120,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 			js["msg"] = f_err
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
+			fmt.Printf("%s\r\n",string(upl))
 		}
 		//文件 copy
 		_, copy_err := io.Copy(f, file)
@@ -131,10 +132,14 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 			js["msg"] = copy_err
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
+			fmt.Printf("%s\r\n",string(upl))
 		}
 		//关闭对应打开的文件
 		defer f.Close()
 		defer file.Close()
+
+		// todo one thread
+		afterUpload(uu);
 
 		//返回上传结果
 		js := make(map[string]interface{})
@@ -144,6 +149,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 		js["action"] = uuidMap[uu].action
 		upl, _ := json.Marshal(js)
 		fmt.Fprintln(w, string(upl))
+		fmt.Printf("%s\r\n",string(upl))
 
 		if uuidMap[uu].status == "success" {
 			time.AfterFunc(3*time.Second, func() {
@@ -156,7 +162,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 				reader := bytes.NewReader(bytesData)
-				url := "http://10.10.24.122:9000/api/configManage/updateState"
+				url := "http://yunweizdh.tel5678.com/api/configManage/updateState"
 				request, err := http.NewRequest("POST", url, reader)
 
 				if err != nil {
