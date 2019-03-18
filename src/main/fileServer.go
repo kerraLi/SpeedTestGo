@@ -1,20 +1,27 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/satori/go.uuid"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
+	"unsafe"
 )
 
 type temp struct {
 	fileName string
 	fileType string
 	content  string
+}
+
+type JsonPostSample struct {
 }
 
 var temps = map[string]temp{
@@ -24,7 +31,7 @@ var temps = map[string]temp{
 	"cert-crt":      {"cert.crt", "cert-crt", "/usr/local/openresty/nginx/conf/cert.d/"},
 	"rewrite-rule":  {"rewrite.rule", "rewrite-rule", "/usr/local/openresty/nginx/conf/rule-config/"},
 	"config-lua":    {"config.lua", "config-lua", "/usr/local/openresty/lualib/resty/upstream/"},
-	"filebeat-yaml": {"filebeat.yaml", "filebeat-yaml", "/home/rancher/confd"}}
+	"filebeat-yml": {"filebeat.yml", "filebeat-yml", "/opt/filebeat/"}}
 
 //nginx-http：没有证书以http方式访问的配置文件，文件名规定http_proxy.conf，Type规定nginx-http，生产环境路径为/usr/local/openresty/nginx/conf/web/；
 //nginx-https：有证书以https方式访问的配置文件，文件名规定https_proxy.conf，Type规定nginx-https，生产环境路径为/usr/local/openresty/nginx/conf/web/，必须配合crt和key使用；
@@ -32,7 +39,7 @@ var temps = map[string]temp{
 //cert-crt：用于https访问是的证书crt，文件名规定为cert.crt，Type规定为cert-crty，生产环境路径为/usr/local/openresty/nginx/conf/cert.d/；
 //rewrite-rule：该规则是规定当使用https方式访问时，需要跳转的https域名，文件名规定为rewrite-rule，Type规定为rewrite-rule，生产环境路径为/usr/local/openresty/nginx/conf/rule-config/；
 //config-lua：主要配置一些防御规则开关，主要修改防御CC规则,文件名规定为config.lua，Type规定为config-lua，生产环境路径为/usr/local/openresty/lualib/resty/upstream/；
-//filebeat-yaml：日志filebeat配置文件，文件名规定为filebeat.yaml，Type规定为filebeat-yaml，生产环境路径为/opt/filebeat/;
+//filebeat-yml：日志filebeat配置文件，文件名规定为filebeat.yml，Type规定为filebeat-yml，生产环境路径为/opt/filebeat/;
 
 type resultTemp struct {
 	code   string
@@ -45,12 +52,15 @@ var uuidMap = map[string]resultTemp{};
 func main() {
 	//绑定路由 如果访问 /upload 调用 Handler 方法
 	http.HandleFunc("/upload", Handler)
-	http.HandleFunc("/checkAction", checkAction)
 	//使用 tcp 协议监听8888
 	http.ListenAndServe(":8888", nil)
 }
 
 func Handler(w http.ResponseWriter, req *http.Request) {
+	// 创建uuid
+	uu := uuid.Must(uuid.NewV4()).String()
+	uuidMap[uu] = resultTemp{uu, "init", ""}
+
 	//输出对应的 请求方式
 	fmt.Println(req.Method)
 	//判断对应的请求来源。如果为get 显示对应的页面
@@ -64,31 +74,37 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 
 		if file_err != nil {
 			js := make(map[string]interface{})
+			js["code"] = uu
 			js["status"] = 500
 			js["type"] = false
 			js["msg"] = file_err
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
+			fmt.Printf("%s\r\n",string(upl))
 			return
 		}
 
 		if _, ok := temps[fileType]; !ok {
 			js := make(map[string]interface{})
+			js["code"] = uu
 			js["status"] = 500
 			js["type"] = false
 			js["msg"] = "fileTpye_err"
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
+			fmt.Printf("%s\r\n",string(upl))
 			return
 		}
 
 		if file_head.Filename != temps[fileType].fileName {
 			js := make(map[string]interface{})
+			js["code"] = uu
 			js["status"] = 500
 			js["type"] = false
 			js["msg"] = "fileName_err"
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
+			fmt.Printf("%s\r\n",string(upl))
 			return
 		}
 
@@ -98,40 +114,78 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 		if f_err != nil {
 			fmt.Fprintf(w, "file open fail:%s", f_err)
 			js := make(map[string]interface{})
+			js["code"] = uu
 			js["status"] = 500
 			js["type"] = false
 			js["msg"] = f_err
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
+			fmt.Printf("%s\r\n",string(upl))
 		}
 		//文件 copy
 		_, copy_err := io.Copy(f, file)
 		if copy_err != nil {
 			js := make(map[string]interface{})
+			js["code"] = uu
 			js["status"] = 500
 			js["type"] = false
 			js["msg"] = copy_err
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
+			fmt.Printf("%s\r\n",string(upl))
 		}
 		//关闭对应打开的文件
 		defer f.Close()
 		defer file.Close()
-
-		// 创建uuid
-		uu := uuid.Must(uuid.NewV4()).String()
-		uuidMap[uu] = resultTemp{uu, "init", ""}
 
 		// todo one thread
 		afterUpload(uu);
 
 		//返回上传结果
 		js := make(map[string]interface{})
-		js["uuid"] = uu
-		js["status"] = 200
-		js["msg"] = "上传成功"
+		js["code"] = uu
+		js["stats_code"] = 200
+		js["status"] = uuidMap[uu].status
+		js["action"] = uuidMap[uu].action
 		upl, _ := json.Marshal(js)
 		fmt.Fprintln(w, string(upl))
+		fmt.Printf("%s\r\n",string(upl))
+
+		if uuidMap[uu].status == "success" {
+			time.AfterFunc(3*time.Second, func() {
+				back := make(map[string]interface{})
+				back["runResult"] = "1"
+				back["id"] = uu
+				bytesData, err := json.Marshal(back)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				reader := bytes.NewReader(bytesData)
+				url := "http://yunweizdh.tel5678.com/api/configManage/updateState"
+				request, err := http.NewRequest("POST", url, reader)
+
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				request.Header.Set("Content-Type", "application/json;charset=UTF-8")
+				client := http.Client{}
+				resp, err := client.Do(request)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				respBytes, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				//byte数组直接转成string，优化内存
+				str := (*string)(unsafe.Pointer(&respBytes))
+				fmt.Println(*str,request)
+			})
+		}
 
 	} else { //如果有其他方式进行页面调用。http Status Code 500
 		w.WriteHeader(500)
@@ -169,20 +223,7 @@ func afterUpload(uu string) {
 
 	} else {
 		uuidMap[uu] = resultTemp{uu, "failure", "check"}
-
+		return
 	}
-
-}
-
-func checkAction(c http.ResponseWriter, req *http.Request) {
-
-	code := req.FormValue("code")
-
-	js := make(map[string]interface{})
-	js["code"] = code
-	js["status"] = uuidMap[code].status
-	js["sction"] = uuidMap[code].action
-	upl, _ := json.Marshal(js)
-	fmt.Fprintln(c, string(upl))
 
 }
