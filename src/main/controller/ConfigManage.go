@@ -1,4 +1,4 @@
-package main
+package controller
 
 import (
 	"bytes"
@@ -25,12 +25,12 @@ type JsonPostSample struct {
 }
 
 var temps = map[string]temp{
-	"nginx-http":    {"http_proxy.conf", "nginx-http", "/usr/local/openresty/nginx/conf/web/"},
-	"nginx-https":   {"https_proxy.conf", "nginx-https", "/usr/local/openresty/nginx/conf/web/"},
-	"cert-key":      {"cert.key", "cert-key", "/usr/local/openresty/nginx/conf/cert.d/"},
-	"cert-crt":      {"cert.crt", "cert-crt", "/usr/local/openresty/nginx/conf/cert.d/"},
-	"rewrite-rule":  {"rewrite.rule", "rewrite-rule", "/usr/local/openresty/nginx/conf/rule-config/"},
-	"config-lua":    {"config.lua", "config-lua", "/usr/local/openresty/lualib/resty/upstream/"},
+	"nginx-http":   {"http_proxy.conf", "nginx-http", "/usr/local/openresty/nginx/conf/web/"},
+	"nginx-https":  {"https_proxy.conf", "nginx-https", "/usr/local/openresty/nginx/conf/web/"},
+	"cert-key":     {"cert.key", "cert-key", "/usr/local/openresty/nginx/conf/cert.d/"},
+	"cert-crt":     {"cert.crt", "cert-crt", "/usr/local/openresty/nginx/conf/cert.d/"},
+	"rewrite-rule": {"rewrite.rule", "rewrite-rule", "/usr/local/openresty/nginx/conf/rule-config/"},
+	"config-lua":   {"config.lua", "config-lua", "/usr/local/openresty/lualib/resty/upstream/"},
 	"filebeat-yml": {"filebeat.yml", "filebeat-yml", "/opt/filebeat/"}}
 
 //nginx-http：没有证书以http方式访问的配置文件，文件名规定http_proxy.conf，Type规定nginx-http，生产环境路径为/usr/local/openresty/nginx/conf/web/；
@@ -47,16 +47,9 @@ type resultTemp struct {
 	action string
 }
 
-var uuidMap = map[string]resultTemp{};
+var uuidMap = map[string]resultTemp{}
 
-func main() {
-	//绑定路由 如果访问 /upload 调用 Handler 方法
-	http.HandleFunc("/upload", Handler)
-	//使用 tcp 协议监听8888
-	http.ListenAndServe(":8888", nil)
-}
-
-func Handler(w http.ResponseWriter, req *http.Request) {
+func ConfigManage(w http.ResponseWriter, req *http.Request) {
 	// 创建uuid
 	uu := uuid.Must(uuid.NewV4()).String()
 	uuidMap[uu] = resultTemp{uu, "init", ""}
@@ -80,7 +73,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 			js["msg"] = file_err
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
-			fmt.Printf("%s\r\n",string(upl))
+			fmt.Printf("%s\r\n", string(upl))
 			return
 		}
 
@@ -92,7 +85,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 			js["msg"] = "fileTpye_err"
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
-			fmt.Printf("%s\r\n",string(upl))
+			fmt.Printf("%s\r\n", string(upl))
 			return
 		}
 
@@ -104,7 +97,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 			js["msg"] = "fileName_err"
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
-			fmt.Printf("%s\r\n",string(upl))
+			fmt.Printf("%s\r\n", string(upl))
 			return
 		}
 
@@ -120,7 +113,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 			js["msg"] = f_err
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
-			fmt.Printf("%s\r\n",string(upl))
+			fmt.Printf("%s\r\n", string(upl))
 		}
 		//文件 copy
 		_, copy_err := io.Copy(f, file)
@@ -132,7 +125,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 			js["msg"] = copy_err
 			upl, _ := json.Marshal(js)
 			fmt.Fprintln(w, string(upl))
-			fmt.Printf("%s\r\n",string(upl))
+			fmt.Printf("%s\r\n", string(upl))
 		}
 		//关闭对应打开的文件
 		defer f.Close()
@@ -149,7 +142,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 		js["action"] = uuidMap[uu].action
 		upl, _ := json.Marshal(js)
 		fmt.Fprintln(w, string(upl))
-		fmt.Printf("%s\r\n",string(upl))
+		fmt.Printf("%s\r\n", string(upl))
 
 		if uuidMap[uu].status == "success" {
 			time.AfterFunc(3*time.Second, func() {
@@ -183,7 +176,7 @@ func Handler(w http.ResponseWriter, req *http.Request) {
 				}
 				//byte数组直接转成string，优化内存
 				str := (*string)(unsafe.Pointer(&respBytes))
-				fmt.Println(*str,request)
+				fmt.Println(*str, request)
 			})
 		}
 
