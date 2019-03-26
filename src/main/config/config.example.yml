@@ -14,7 +14,7 @@ web:
 
 # 监控时间间隔
 monitor:
-  interval: 5
+  interval: 60
 
 # 队列地址
 queue:

@@ -33,12 +33,16 @@ func (c Check) init(interval int) {
 		expire := <-t.C
 		timestamp := strconv.FormatInt(expire.Unix(), 10)
 
+		context, _ := json.Marshal(map[string]interface{}{
+			"timestamp": timestamp,
+		})
 		result := map[string]string{
+			"action":      "monitor_time",
 			"server_name": util.GetConfig("server.name"),
 			"server_ip":   util.GetConfig("server.ip"),
-			"timestamp":   timestamp,
+			"result":      string(context),
 		}
 		msg, _ := json.Marshal(result)
-		util.HandlePush("monitor_time", msg)
+		util.HandlePush("monitor", msg)
 	}
 }
