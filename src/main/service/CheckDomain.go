@@ -19,7 +19,7 @@ import (
 type SpeedInfo struct {
 	Ip                string `json:"ip"`
 	Url               string `json:"url"`
-	Address           string `json:"address"`
+	IpLocation        string `json:"ip_location"`
 	Status            string `json:"status"`
 	Msg               string `json:"msg"`
 	RedirectCount     int    `json:"redirect_count"`
@@ -113,7 +113,7 @@ func SpeedUrl(domain string) SpeedInfo {
 			if ddi.Err == nil {
 				ip = ddi.Addrs[0]
 			}
-			speed.DnsResolveTime = time.Since(start).String()
+			speed.DnsResolveTime = getMillTimeFormat(time.Since(start))
 		},
 
 		// tls握手时间
@@ -124,17 +124,17 @@ func SpeedUrl(domain string) SpeedInfo {
 		ConnectStart: func(network, addr string) {},
 		ConnectDone: func(network, addr string, err error) {
 			speed.RedirectCount = speed.RedirectCount + 1
-			speed.HttpConnTime = time.Since(start).String()
+			speed.HttpConnTime = getMillTimeFormat(time.Since(start))
 		},
 
 		// 获取到连接
 		GotConn: func(info httptrace.GotConnInfo) {
-			speed.HttpPreTrans = time.Since(start).String()
+			speed.HttpPreTrans = getMillTimeFormat(time.Since(start))
 		},
 
 		// 获取首字节时间(server_processing)
 		GotFirstResponseByte: func() {
-			speed.HttpStartTrans = time.Since(start).String()
+			speed.HttpStartTrans = getMillTimeFormat(time.Since(start))
 		},
 	}
 
@@ -164,11 +164,11 @@ func SpeedUrl(domain string) SpeedInfo {
 	resp, err := client.Do(req)
 	if err != nil {
 		speed.Status = "error"
-		speed.HttpTotalTime = time.Since(start).String()
+		speed.HttpTotalTime = getMillTimeFormat(time.Since(start))
 		speed.Msg = err.Error()
 		if ip.IP != nil {
 			speed.Ip = ip.IP.String()
-			speed.Address = getIpLocation(ip.IP)
+			speed.IpLocation = getIpLocation(ip.IP)
 		}
 		return speed
 	}
@@ -178,11 +178,11 @@ func SpeedUrl(domain string) SpeedInfo {
 	// data
 	speed.Status = "success"
 	speed.HttpCode = resp.StatusCode
-	speed.HttpTotalTime = time.Since(start).String()
-	speed.HttpSizeDownload = strconv.Itoa(len(body))
-	speed.HttpSpeedDownload = ""
+	speed.HttpTotalTime = getMillTimeFormat(time.Since(start))
+	speed.HttpSizeDownload = getSizeFormat(len(body))
+	speed.HttpSpeedDownload = getSpeedFormat(len(body), time.Since(start))
 	speed.Ip = ip.IP.String()
-	speed.Address = getIpLocation(ip.IP)
+	speed.IpLocation = getIpLocation(ip.IP)
 	if speed.HttpCode != 200 {
 		speed.Status = "error"
 	}
@@ -221,7 +221,6 @@ func getIpLocation(ip net.IP) string {
 		util.FailOnErrorNoExit(err, "ip 地址搜索异常")
 		return ""
 	}
-	//fmt.Println(record.Continent, record.Country, record.Subdivisions, record.City)
 
 	continent := record.Continent.Names["zh-CN"]
 	country := record.Country.Names["zh-CN"]
@@ -244,4 +243,35 @@ func pushAlert(info SpeedInfo) {
 		"result":      string(context),
 	}
 	queueChan <- result
+}
+
+// 时间：同一单位 ms
+func getMillTimeFormat(d time.Duration) string {
+	return formatTwoPointFloat(d.Seconds()*1000, 2) + " ms"
+}
+
+// 获取大小：同一单位 kb
+func getSizeFormat(byteLen int) string {
+	return formatTwoPointFloat(float64(byteLen)/1024, 2) + " kb"
+}
+
+// 获取下载速度：同一单位 kb
+func getSpeedFormat(byteLen int, d time.Duration) string {
+	return formatTwoPointFloat(float64(byteLen)/1024/1024/d.Seconds(), 2) + " mb/s"
+}
+
+// 返回指定小数位
+func formatTwoPointFloat(f float64, m int) string {
+	n := strconv.FormatFloat(f, 'f', -1, 32)
+	if n == "" {
+		return ""
+	}
+	if m >= len(n) {
+		return n
+	}
+	new := strings.Split(n, ".")
+	if len(new) < 2 || m >= len(new[1]) {
+		return n
+	}
+	return new[0] + "." + new[1][:m]
 }
