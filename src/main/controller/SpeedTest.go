@@ -17,14 +17,13 @@ func SpeedTest(w http.ResponseWriter, req *http.Request) {
 
 	if req.Method == "POST" {
 		action := req.FormValue("action")
-		switch action {
-		case "speed_test":
+		if action == "speed_test" {
 			domain := req.FormValue("url")
 			result := service.SpeedUrl(domain)
 			context, _ := json.Marshal(result)
 			fmt.Fprintln(w, string(context))
 			return
-		case "speed-monitor":
+		} else if action == "speed_monitor" {
 			// redis client
 			if redisClient == nil {
 				db, _ := strconv.Atoi(util.GetConfig("redis.database"))
@@ -49,17 +48,25 @@ func SpeedTest(w http.ResponseWriter, req *http.Request) {
 			}
 			// speed
 			var slice []service.SpeedInfo
+			// ch 控制协程数量
 			ch := make(chan int, 500)
+			// fCh 控制是否所有协程跑完
+			fCh := make(chan int, len(domains))
 			for _, theDomain := range domains {
 				ch <- 1
 				// 协程
 				go func(domain string) {
-					slice = append(slice, service.SpeedUrl(domain))
+					result := service.SpeedUrl(domain)
+					slice = append(slice, result)
 					<-ch
+					fCh <- 1
 				}(theDomain)
 			}
-			close(ch)
-			fmt.Fprintln(w, slice)
+			for i := 0; i < len(domains); i++ {
+				<-fCh
+			}
+			c, _ := json.Marshal(slice)
+			fmt.Fprintln(w, string(c))
 			return
 		}
 	}
