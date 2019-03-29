@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/json"
 	"github.com/streadway/amqp"
 )
 
@@ -22,10 +23,10 @@ func MqUtil() *Util {
 // onConn
 func HandleConn() *Util {
 	var err error
-	conn, err := amqp.Dial(GetConfig("queue.url"))
-	OnError(err, "failed to connect tp queue")
+	conn, err := amqp.Dial(GetConfig("rabbit.url"))
+	onError(err, "failed to connect tp queue")
 	channel, err := conn.Channel()
-	OnError(err, "failed to open a channel")
+	onError(err, "failed to open a channel")
 	// util
 	util = &Util{
 		conn:    conn,
@@ -35,20 +36,23 @@ func HandleConn() *Util {
 }
 
 //push
-func HandlePush(action string, msg []byte) {
+func HandlePush(info map[string]string) {
 	if util == nil {
 		util = HandleConn()
 	}
+	// info
+	action := info["action"]
+	msg, _ := json.Marshal(info)
 	// 定义队列
 	queue, err := util.channel.QueueDeclare(
-		action,
+		GetConfig("rabbit.prefix")+action,
 		false,
 		false,
 		false,
 		false,
 		nil,
 	)
-	OnError(err, "定义队列失败")
+	onError(err, "定义队列失败")
 	// 发送消息
 	if len(msg) == 0 {
 		msg = []byte("Hello，World！")
@@ -63,21 +67,21 @@ func HandlePush(action string, msg []byte) {
 			ContentType:  "text/plain",
 			Body:         msg,
 		})
-	OnError(err, "发送消息失败")
+	onError(err, "发送消息失败")
 }
 
 // error
-func OnError(err error, msg string) {
+func onError(err error, msg string) {
 	if err == nil {
 		return
 	}
-	if util != nil {
-		if !util.conn.IsClosed() {
-			connErr := util.conn.Close()
-			FailOnError(connErr, "error")
-		}
-		chErr := util.channel.Close()
-		FailOnError(chErr, "error")
-	}
-	FailOnError(err, msg)
+	//if util != nil {
+	//	if !util.conn.IsClosed() {
+	//		connErr := util.conn.Close()
+	//		FailOnErrorNoExit(connErr, "error")
+	//	}
+	//	chErr := util.channel.Close()
+	//	FailOnErrorNoExit(chErr, "error")
+	//}
+	FailOnErrorNoExit(err, msg)
 }

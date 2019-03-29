@@ -12,10 +12,19 @@ server:
 web:
   port: 8888
 
-# 监控时间间隔
+# 监控时间间隔(second)
 monitor:
-  interval: 60
+  interval_time: 60
+  interval_domain: 3600
 
 # 队列地址
-queue:
+rabbit:
+  prefix:
   url: amqp://admin:admin@47.75.103.32:5672/
+
+# redis
+redis:
+  database: 0
+  host: 127.0.0.1
+  port: 6379
+  password:
